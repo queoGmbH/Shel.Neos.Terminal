@@ -15,6 +15,7 @@ namespace Shel\Neos\Terminal\Security;
 
 use Neos\Flow\Aop\Pointcut\PointcutFilterInterface;
 use Neos\Flow\Security\Authorization\Privilege\AbstractPrivilege;
+use Neos\Flow\Security\Authorization\Privilege\Entity\EntityPrivilegeInterface;
 use Neos\Flow\Security\Authorization\Privilege\Method\MethodPrivilege;
 use Neos\Flow\Security\Authorization\Privilege\Method\MethodPrivilegeInterface;
 use Neos\Flow\Security\Authorization\Privilege\Method\MethodPrivilegeSubject;
@@ -31,7 +32,7 @@ use Shel\Neos\Terminal\Service\TerminalCommandService;
  */
 class TerminalCommandPrivilege extends AbstractPrivilege implements MethodPrivilegeInterface
 {
-    private PrivilegeInterface $methodPrivilege;
+    private MethodPrivilegeInterface $methodPrivilege;
 
     private bool $initialized = false;
 
@@ -58,7 +59,10 @@ class TerminalCommandPrivilege extends AbstractPrivilege implements MethodPrivil
         }
         $methodPrivilegeTarget = new PrivilegeTarget($this->privilegeTarget->getIdentifier() . '__methodPrivilege', MethodPrivilege::class, $methodPrivilegeMatcher);
         $methodPrivilegeTarget->injectObjectManager($this->objectManager);
-        $this->methodPrivilege = $methodPrivilegeTarget->createPrivilege($this->getPermission(), $this->getParameters());
+        
+        /** @var MethodPrivilegeInterface $methodPrivilege */
+        $methodPrivilege = $methodPrivilegeTarget->createPrivilege($this->getPermission(), $this->getParameters());
+        $this->methodPrivilege = $methodPrivilege;
     }
 
     /**
@@ -108,6 +112,7 @@ class TerminalCommandPrivilege extends AbstractPrivilege implements MethodPrivil
     {
         $this->initialize();
         return $this->methodPrivilege->matchesMethod($className, $methodName);
+//        return $this->methodPrivilege->matchesMethod($className, $methodName);
     }
 
     /**

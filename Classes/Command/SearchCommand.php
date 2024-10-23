@@ -14,12 +14,13 @@ namespace Shel\Neos\Terminal\Command;
  * source code.
  */
 
-use Neos\ContentRepository\Domain\Model\NodeInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindChildNodesFilter;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cache\CacheManager;
 use Neos\Flow\I18n\Translator;
 use Neos\Flow\Mvc\Controller\ControllerContext;
-use Neos\Neos\Domain\Service\NodeSearchServiceInterface;
 use Neos\Neos\Service\LinkingService;
 use Shel\Neos\Terminal\Domain\CommandContext;
 use Shel\Neos\Terminal\Domain\CommandInvocationResult;
@@ -34,10 +35,10 @@ class SearchCommand implements TerminalCommandInterface
 {
 
     /**
-     * @var NodeSearchServiceInterface
+     * @Flow\Inject
+     * @var ContentRepositoryRegistry
      */
-    #[Flow\Inject]
-    protected $nodeSearchService;
+    protected $contentRepositoryRegistry;
 
     public function __construct(
         protected Translator $translator,
@@ -111,28 +112,26 @@ class SearchCommand implements TerminalCommandInterface
             );
         }
 
-        // The NodeSearchInterface does not yet have a 4th argument for the startingPoint but all known implementations do
-        $nodes = $this->nodeSearchService->findByProperties(
-            $input->getArgument('searchword'),
-            $input->getOption('nodeTypes'),
-            $contextNode->getContext(),
-            $contextNode
-        );
+        $nodes = $this->contentRepositoryRegistry->subgraphForNode($contextNode)->findChildNodes(
+            $contextNode->aggregateId,
+            FindChildNodesFilter::create(nodeTypes: $input->getOption('nodeTypes'))
+        )->getIterator();
 
         $results = array_map(function ($node) use ($documentNode, $commandContext) {
             return NodeResult::fromNode(
+                $this->contentRepositoryRegistry,
                 $node,
                 $this->getUriForNode($commandContext->getControllerContext(), $documentNode, $documentNode)
             );
-        }, $nodes);
+        }, iterator_to_array($nodes));
 
         return new CommandInvocationResult(true, $results);
     }
 
     protected function getUriForNode(
         ControllerContext $controllerContext,
-        NodeInterface $node,
-        NodeInterface $baseNode
+        Node $node,
+        Node $baseNode
     ): string {
         try {
             return $this->linkingService->createNodeUri(

@@ -13,7 +13,7 @@ namespace Shel\Neos\Terminal\Controller;
  * source code.
  */
 
-use Neos\ContentRepository\Domain\Model\NodeInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\I18n\Exception\IndexOutOfBoundsException;
 use Neos\Flow\I18n\Exception\InvalidFormatPlaceholderException;
@@ -107,9 +107,9 @@ class TerminalCommandController extends ActionController
     public function invokeCommandAction(
         string $commandName,
         string $argument = null,
-        NodeInterface $siteNode = null,
-        NodeInterface $documentNode = null,
-        NodeInterface $focusedNode = null
+        Node $siteNode = null,
+        Node $documentNode = null,
+        Node $focusedNode = null
     ): void {
         $this->response->setContentType('application/json');
 
@@ -128,11 +128,6 @@ class TerminalCommandController extends ActionController
         } catch (AccessDeniedException $e) {
             $result = new CommandInvocationResult(false,
                 $this->translateById('commandNotGranted', ['command' => $commandName]));
-        }
-
-        if (!$result) {
-            $result = new CommandInvocationResult(false,
-                $this->translateById('commandNotFound', ['command' => $commandName]));
         }
 
         // TODO: Move the feedback related logic into a separate service
@@ -184,5 +179,4 @@ class TerminalCommandController extends ActionController
         }
         return $id;
     }
-
 }

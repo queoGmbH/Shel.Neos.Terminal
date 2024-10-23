@@ -32,8 +32,8 @@ class TerminalCommandService {
         $classNames = $objectManager->get(ReflectionService::class)->getAllImplementationClassNamesForInterface(TerminalCommandInterface::class);
         foreach ($classNames as $className) {
             $objectName = $objectManager->getObjectNameByClassName($className);
-            /** @var TerminalCommandInterface $objectName */
             if ($objectName) {
+                /** @var TerminalCommandInterface $objectName */
                 $commandConfiguration[$objectName::getCommandName()] = $className;
             }
         }

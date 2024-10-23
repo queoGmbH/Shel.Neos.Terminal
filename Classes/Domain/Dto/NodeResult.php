@@ -2,12 +2,22 @@
 
 namespace Shel\Neos\Terminal\Domain\Dto;
 
-use Neos\ContentRepository\Domain\Model\NodeInterface;
+use Neos\ContentRepository\Core\NodeType\NodeType;
+use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
+use Neos\ContentRepository\Core\NodeType\NodeTypeName;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
+use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 
 #[Flow\Proxy(false)]
 class NodeResult implements \JsonSerializable
 {
+    /**
+     * @Flow\Inject
+     * @var NodeTypeManager
+     */
+    protected $nodeTypeManager;
 
     private function __construct(
         public readonly string $identifier,
@@ -20,22 +30,26 @@ class NodeResult implements \JsonSerializable
     ) {
     }
 
-    public static function fromNode(NodeInterface $node, string $uri, mixed $score = ''): self
+    public static function fromNode(ContentRepositoryRegistry $contentRepositoryRegistry, Node $node, string $uri, mixed $score = ''): self
     {
         $breadcrumbs = [];
-        $parent = $node->getParent();
-        while ($parent) {
-            if ($parent->getNodeType()->isOfType('Neos.Neos:Node')) {
+        $subgraph = $contentRepositoryRegistry->subgraphForNode($node);
+        $parent = $subgraph->findParentNode($node->aggregateId);
+        while ($parent !== null) {
+            if ($parent->nodeTypeName->equals(NodeTypeName::fromString('Neos.Neos:Node'))) {
                 $breadcrumbs[] = $parent->getLabel();
             }
-            $parent = $parent->getParent();
+            $parent = $subgraph->findParentNode($parent->aggregateId);
         }
 
+        $contentRepository = $contentRepositoryRegistry->get($node->contentRepositoryId);
+        $nodeType = $contentRepository->getNodeTypeManager()->getNodeType($node->nodeTypeName);
+
         return new self(
-            $node->getIdentifier(),
+            $node->aggregateId,
             $node->getLabel(),
-            $node->getNodeType()->getLabel(),
-            $node->getNodeType()->getConfiguration('ui.icon') ?? 'question',
+            $nodeType->getLabel(),
+            $nodeType->getConfiguration('ui.icon') ?? 'question',
             implode(' / ', array_reverse($breadcrumbs)),
             $uri,
             $score,
@@ -43,7 +57,7 @@ class NodeResult implements \JsonSerializable
     }
 
     /**
-     * @return array{__typename: string, identifier: string, label: string, nodeType: string, icon: string, breadcrumb: string, uri: string, score: float}
+     * @return array{__typename: string, identifier: string, label: string, nodeType: string, icon: string, breadcrumb: string, uri: string, score: string}
      */
     public function toArray(): array
     {
@@ -60,7 +74,7 @@ class NodeResult implements \JsonSerializable
     }
 
     /**
-     * @return array{__typename: string, identifier: string, label: string, nodeType: string, icon: string, breadcrumb: string, uri: string, score: float}
+     * @return array{__typename: string, identifier: string, label: string, nodeType: string, icon: string, breadcrumb: string, uri: string, score: string}
      */
     public function jsonSerialize(): array
     {
